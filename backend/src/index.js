@@ -42,7 +42,7 @@ const store = (c) => {
     getApp: async (id) => parseApp(await first('SELECT * FROM applications WHERE id = ?', [id])),
     queue: async () => (await all('SELECT * FROM applications ORDER BY createdAt DESC')).map(parseApp),
     mine: async (email) => (await all('SELECT * FROM applications WHERE ownerEmail = ? ORDER BY createdAt DESC', [email])).map(parseApp),
-    saveApp: async (a) => { await q('UPDATE applications SET status = ?, officerEmail = ?, assignedOfficer = ?, scheduledAt = ?, observed = ?, tolerance = ?, result = ?, remarks = ?, photos = ?, certNo = ? WHERE id = ?', [a.status, a.officerEmail || '', a.assignedOfficer || '', a.scheduledAt || '', a.observed ?? null, a.tolerance ?? null, a.result || '', a.remarks || '', JSON.stringify(a.photos || []), a.certNo || '', a.id]); return a },
+    saveApp: async (a) => { await q('UPDATE applications SET status = ?, officerEmail = ?, assignedOfficer = ?, scheduledAt = ?, confirmed = ?, observed = ?, tolerance = ?, result = ?, remarks = ?, photos = ?, certNo = ? WHERE id = ?', [a.status, a.officerEmail || '', a.assignedOfficer || '', a.scheduledAt || '', a.confirmed || '', a.observed ?? null, a.tolerance ?? null, a.result || '', a.remarks || '', JSON.stringify(a.photos || []), a.certNo || '', a.id]); return a },
     saveCert: async (cert) => { await q('INSERT OR REPLACE INTO certificates (certNo, applicationId, instrumentId, verifyDate, validUntil, officerEmail) VALUES (?, ?, ?, ?, ?, ?)', [cert.certNo, cert.applicationId, cert.instrumentId, cert.verifyDate, cert.validUntil, cert.officerEmail]) },
     getCert: async (no) => await first('SELECT * FROM certificates WHERE certNo = ?', [no]),
     myCerts: async (email) => await all('SELECT c.* FROM certificates c JOIN applications a ON a.id = c.applicationId WHERE a.ownerEmail = ?', [email]),
@@ -112,6 +112,9 @@ app.post('/api/applications/:id/confirm-schedule', auth, async (c) => {
   const s = store(c)
   const a = await s.getApp(c.req.param('id'))
   if (!a) return c.json({ error: 'not found' }, 404)
+  if (a.ownerEmail !== c.get('user').email) return c.json({ error: 'not your application' }, 403)
+  a.confirmed = 'yes'
+  await s.saveApp(a)
   await s.audit(c.get('user').email, 'schedule.confirmed', a.id)
   return c.json(a)
 })

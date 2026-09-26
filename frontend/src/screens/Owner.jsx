@@ -54,7 +54,7 @@ export default function Owner({ user, hdrs, openCert }) {
 
   const confirm = async (id) => {
     const h = await hdrs()
-    await api(`/api/applications/${id}/confirm-schedule`, { method: 'POST', ...h }).catch(() => {})
+    await api(`/api/applications/${id}/confirm-schedule`, { method: 'POST', ...h })
     load()
   }
 
@@ -115,7 +115,7 @@ export default function Owner({ user, hdrs, openCert }) {
         <div className={cardSm} key={a.id}>
           <span className={badge}>{a.id}</span> <b>{a.instrumentId}</b> · {a.location}
           <StepBar status={a.status} />
-          <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button></> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}</p>
+          <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} {a.confirmed ? <span className="text-emerald font-medium">· Confirmed ✓</span> : <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button>}</> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}</p>
         </div>
       ))}
 

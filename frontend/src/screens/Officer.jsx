@@ -50,7 +50,7 @@ export default function Officer({ user, hdrs, openCert }) {
       <div className={`${wrap} py-12`}>
         <button className={btnSec} onClick={() => { setSel(null); setRes(null) }}>← Queue</button>
         <h2 className={h2}>{sel.id} · {sel.instrumentId}</h2>
-        <div className={code}>Location: {sel.location} · GPS 28.61, 77.20<br />Owner: {sel.ownerEmail}<br />Status: {sel.status}{sel.scheduledAt ? ` · Inspection: ${sel.scheduledAt}` : ''}</div><br />
+        <div className={code}>Location: {sel.location} · GPS 28.61, 77.20<br />Owner: {sel.ownerEmail}<br />Status: {sel.status}{sel.scheduledAt ? ` · Inspection: ${sel.scheduledAt}` : ''}{sel.confirmed ? ' · owner confirmed ✓' : ''}</div><br />
         <div className={cardSm}>
           <span className={lbl}>Schedule inspection</span><br /><br />
           <input className={inp} type="date" value={f.scheduledAt || ''} onChange={(e) => setF({ ...f, scheduledAt: e.target.value })} />{' '}
