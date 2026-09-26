@@ -103,6 +103,9 @@ export default function Owner({ user, hdrs, openCert }) {
                 <span className={badge}>{i.id}</span>
                 <h3 className="text-lg font-medium">{i.type}</h3>
                 <p className={sub}>Serial: {i.serial || '—'} · {i.capacity || ''}<br />{i.location || ''} · Valid until: {i.validUntil || '—'}<br />Status: {i.status}</p>
+                {apps.filter((a) => a.instrumentId === i.id && ['Submitted', 'Scheduled'].includes(a.status)).map((a) => (
+                  <p className={sub} key={a.id}><span className={badge}>{a.id}</span> {a.status}{a.scheduledAt ? ` · Inspection: ${a.scheduledAt}` : ''} <button className={btnSec} onClick={() => cancelApp(a.id)}>Cancel</button></p>
+                ))}
                 <button className={btnSec} onClick={() => { setApplyFor(i.id); setTab('Apply') }}>Apply for Verification</button>{' '}
                 {certFor(i.id) && <button className={btn} onClick={() => reverify(i.id)}>Re-verify →</button>}
               </div>
