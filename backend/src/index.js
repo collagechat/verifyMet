@@ -133,6 +133,18 @@ app.post('/api/applications/:id/confirm-schedule', auth, async (c) => {
   await s.audit(c.get('user').email, 'schedule.confirmed', a.id)
   return c.json(a)
 })
+// owner cancels a pending application (Submitted / Scheduled only)
+app.post('/api/applications/:id/cancel', auth, async (c) => {
+  const s = store(c)
+  const a = await s.getApp(c.req.param('id'))
+  if (!a) return c.json({ error: 'not found' }, 404)
+  if (a.ownerEmail !== c.get('user').email) return c.json({ error: 'not your application' }, 403)
+  if (!['Submitted', 'Scheduled'].includes(a.status)) return c.json({ error: `cannot cancel when ${a.status}` }, 400)
+  a.status = 'Cancelled'
+  await s.saveApp(a)
+  await s.audit(c.get('user').email, 'application.cancelled', a.id)
+  return c.json(a)
+})
 
 // --- officer ---
 app.get('/api/officer/queue', auth, officerOnly, async (c) => {
@@ -145,6 +157,7 @@ app.post('/api/applications/:id/schedule', auth, officerOnly, async (c) => {
   const a = await s.getApp(c.req.param('id'))
   if (!a) return c.json({ error: 'not found' }, 404)
   const b = await c.req.json().catch(() => ({}))
+  if (a.status === 'Cancelled') return c.json({ error: 'application was cancelled' }, 400)
   a.status = 'Scheduled'
   a.scheduledAt = b.scheduledAt || a.scheduledAt
   await s.saveApp(a)
@@ -157,6 +170,7 @@ app.post('/api/applications/:id/verify', auth, officerOnly, async (c) => {
   if (!a) return c.json({ error: 'not found' }, 404)
   const u = c.get('user')
   const b = await c.req.json()
+  if (a.status === 'Cancelled') return c.json({ error: 'application was cancelled' }, 400)
   Object.assign(a, { observed: b.observed, tolerance: b.tolerance, result: b.result, remarks: b.remarks || '', photos: b.photos || [], officerEmail: u.email, status: b.result === 'PASS' ? 'Verified' : 'Failed' })
   let cert = null
   if (b.result === 'PASS') {

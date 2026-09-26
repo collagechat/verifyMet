@@ -71,6 +71,16 @@ export default function Owner({ user, hdrs, openCert }) {
     } catch (e) { setErr(e.message) }
   }
 
+  const cancelApp = async (id) => {
+    if (!window.confirm(`Cancel application ${id}? This cannot be undone.`)) return
+    setErr('')
+    try {
+      const h = await hdrs()
+      await api(`/api/applications/${id}/cancel`, { method: 'POST', ...h })
+      load()
+    } catch (e) { setErr(e.message) }
+  }
+
   const checkQr = async (e) => {
     e.preventDefault()
     const no = qr.trim().toUpperCase()
@@ -131,7 +141,7 @@ export default function Owner({ user, hdrs, openCert }) {
           <span className={badge}>{a.id}</span> <b>{a.instrumentId}</b> · {a.location}
           {a.previousCertNo ? <span className={badge}> Re-verification · prev {a.previousCertNo}</span> : null}
           <StepBar status={a.status} />
-          <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} {a.confirmed ? <span className="text-emerald font-medium">· Confirmed ✓</span> : <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button>}</> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}</p>
+          <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} {a.confirmed ? <span className="text-emerald font-medium">· Confirmed ✓</span> : <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button>}</> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}{['Submitted', 'Scheduled'].includes(a.status) ? <> <button className={btnSec} onClick={() => cancelApp(a.id)}>Cancel</button></> : null}</p>
         </div>
       ))}
 

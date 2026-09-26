@@ -54,7 +54,7 @@ export default function Officer({ user, hdrs, openCert }) {
     } catch (e) { setErr(e.message) }
   }
 
-  const shown = tab === 'Scheduled' ? apps.filter((a) => a.status === 'Scheduled') : tab === 'Done' ? apps.filter((a) => ['Certificate Issued', 'Failed'].includes(a.status)) : apps
+  const shown = tab === 'Scheduled' ? apps.filter((a) => a.status === 'Scheduled') : tab === 'Done' ? apps.filter((a) => ['Certificate Issued', 'Failed', 'Cancelled'].includes(a.status)) : apps.filter((a) => !['Certificate Issued', 'Failed', 'Cancelled'].includes(a.status))
 
   if (sel) {
     return (
