@@ -1,0 +1,138 @@
+VerifyMet - HOW IT WORKS (full guide)
+=========================================
+
+LIVE LINKS
+----------
+Website (frontend) : https://frontend-two-tawny-34.vercel.app
+API (backend)      : https://verifymet-api.internaltalk.workers.dev
+QR check (example) : https://frontend-two-tawny-34.vercel.app/#/verify/VM-CERT-1024
+
+WHAT IS VERIFYMET
+-----------------
+VerifyMet digitises the Legal Metrology verification of weighing and
+measuring instruments (weighing machines, fuel dispensers, etc.).
+Instead of paper forms and manual stamping, the whole journey happens
+online: the owner applies, an officer inspects and approves, a digital
+certificate with a QR code is issued, and anyone can scan the QR to
+confirm the certificate is VALID. An admin monitors everything.
+
+LOGIN ACCOUNTS (all real, password-based)
+-----------------------------------------
+There are 4 roles. Everyone logs in on the website with email + password.
+New people can also click "New here? Register" - they join as Owner,
+and the Admin can promote them later.
+
+1. OWNER (instrument user, e.g. shop owner)
+   Email    : owner@demo.in
+   Password : Owner123!
+   Lands on : Owner workspace
+
+2. LMO - Legal Metrology Officer (government inspector)
+   Email    : lmo@demo.in
+   Password : Lmo123!
+   Lands on : Officer queue
+
+3. GATC - Government Approved Test Centre (authorised lab)
+   Email    : gatc@demo.in
+   Password : Gatc123!
+   Lands on : Officer queue (same as LMO)
+
+4. ADMIN (system monitor)
+   Email    : admin@demo.in
+   Password : Admin123!
+   Lands on : System monitor
+
+HOW EACH ROLE WORKS, STEP BY STEP
+----------------------------------
+
+OWNER JOURNEY
+1. Log in -> Owner workspace opens.
+2. INSTRUMENTS tab: your instruments are listed (ID, type, status,
+   expiry). "Add Instrument" registers a new one: type, manufacturer,
+   serial, capacity, location, validity date + photo/document upload
+   (photos go to Cloudinary, the link is saved in the database).
+3. APPLY tab: pick an instrument, enter location, attach documents,
+   Submit. You get an application ID like VM-1025 with status
+   "Submitted".
+4. TRACK tab: a visual status bar follows the application -
+   Submitted -> Scheduled -> Inspection -> Verified -> Certificate
+   Issued. When the officer sets an inspection date, you see it here
+   and press Confirm.
+5. CERTIFICATES tab: after approval, your digital certificate appears
+   here with certificate number, dates and officer name. Open it to
+   see the QR code.
+6. SCAN QR tab: type any certificate number to check it, or scan a
+   printed QR with your phone camera - it opens the public
+   verification page showing VALID + instrument + validity dates.
+
+OFFICER JOURNEY (LMO / GATC)
+1. Log in -> Assigned applications queue opens (only applications
+   assigned to you, plus unassigned ones).
+2. Tabs filter the queue: Queue (all) / Scheduled / Done.
+3. Click Open on an application: you see instrument details, owner,
+   location with GPS reference, and current status.
+4. Schedule the inspection: pick a date -> Schedule. The owner sees
+   this date in their Track tab.
+5. Record measurements: enter the observed measurement and the
+   permissible tolerance. The screen shows whether the reading is
+   within tolerance. Add remarks and upload site photos.
+6. Approve ("Generate Certificate") or Reject.
+   - Approve -> a digital certificate (VM-CERT-...) is created
+     instantly with verification date, 1-year-style validity and
+     your officer ID.
+   - Reject -> the application is marked Failed with your remarks.
+
+ADMIN JOURNEY
+1. Log in -> System monitor opens with live counts: applications,
+   instruments, users, instruments expiring within 60 days.
+2. USERS tab: every registered email with its role. "Add / Set role"
+   creates or promotes anyone to Owner, LMO, GATC or Admin.
+   (This is how a new registrant becomes an officer.)
+3. INSTRUMENTS tab: every instrument in the system with owner,
+   location, validity and status.
+4. APPLICATIONS tab: every application with status and assigned
+   officer. Use the Assign dropdown to route an application to a
+   specific LMO/GATC officer.
+5. EXPIRY tab: instruments whose validity ends within 60 days -
+   the renewal watchlist.
+6. AUDIT tab: a tamper-evident log of everything - who submitted,
+   scheduled, assigned, approved or rejected what, and when.
+
+THE FULL PIPELINE (one line)
+-----------------------------
+Apply -> Schedule -> Inspect -> Verify -> Certify -> Track
+
+Example: Owner applies for WM-1024 -> Admin assigns LMO ->
+LMO schedules + inspects + approves -> certificate VM-CERT-1024 ->
+anyone scans the QR -> VALID page.
+
+HOW LOGIN WORKS (technical, short)
+-----------------------------------
+1. You type email + password on the website.
+2. Firebase Authentication checks the password and returns a signed
+   ID token (proves who you are, expires in 1 hour).
+3. The website sends this token to the API with every request.
+4. The API verifies the token signature against Google, looks up
+   your role (Owner/LMO/GATC/Admin) in the Turso database, and
+   allows or blocks each action by role.
+5. Officers can only see their assigned applications; admin-only
+   pages reject everyone else; the QR verification page is public
+   (no login needed).
+
+WHERE DATA LIVES
+-----------------
+- Logins        : Firebase Authentication (Google)
+- All records   : Turso database (instruments, applications,
+                  certificates, users/roles, audit log)
+- Photos/docs   : Cloudinary (only secure links stored in database)
+- Website host  : Vercel
+- API host      : Cloudflare Workers (Hono)
+
+TRY IT IN 60 SECONDS
+---------------------
+1. Open the website, Register a new owner account.
+2. Add an instrument, Apply for verification.
+3. Log in as admin@demo.in, assign the application to lmo@demo.in.
+4. Log in as lmo@demo.in, open it, schedule, enter measurements,
+   Approve.
+5. Back as owner: certificate is in Certificates. Scan the QR.
