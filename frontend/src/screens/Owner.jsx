@@ -12,6 +12,8 @@ export default function Owner({ user, hdrs, openCert }) {
   const [f, setF] = useState({})
   const [applyFor, setApplyFor] = useState(null)
   const [qr, setQr] = useState('')
+  const [err, setErr] = useState('')
+  const certFor = (instrumentId) => certs.filter((c) => c.instrumentId === instrumentId).sort((a, b) => b.certNo.localeCompare(a.certNo))[0]
 
   const load = async () => {
     const h = await hdrs()
@@ -58,6 +60,17 @@ export default function Owner({ user, hdrs, openCert }) {
     load()
   }
 
+  // one-click re-verification from last certificate — skips the whole form
+  const reverify = async (instrumentId) => {
+    setErr('')
+    try {
+      const h = await hdrs()
+      await api('/api/applications/reverify', { method: 'POST', body: { instrumentId }, ...h })
+      load()
+      setTab('Track')
+    } catch (e) { setErr(e.message) }
+  }
+
   const checkQr = async (e) => {
     e.preventDefault()
     const no = qr.trim().toUpperCase()
@@ -69,6 +82,7 @@ export default function Owner({ user, hdrs, openCert }) {
       <span className={lbl}>Owner · {user.email}</span>
       <h2 className={h2}>Owner workspace</h2>
       <Tabs tabs={['Instruments', 'Apply', 'Track', 'Certificates', 'Scan QR']} cur={tab} set={setTab} />
+      {err && <p className="text-rose text-sm">{err}</p>}
 
       {tab === 'Instruments' && (
         <div>
@@ -79,7 +93,8 @@ export default function Owner({ user, hdrs, openCert }) {
                 <span className={badge}>{i.id}</span>
                 <h3 className="text-lg font-medium">{i.type}</h3>
                 <p className={sub}>Serial: {i.serial || '—'} · {i.capacity || ''}<br />{i.location || ''} · Valid until: {i.validUntil || '—'}<br />Status: {i.status}</p>
-                <button className={btnSec} onClick={() => { setApplyFor(i.id); setTab('Apply') }}>Apply for Verification</button>
+                <button className={btnSec} onClick={() => { setApplyFor(i.id); setTab('Apply') }}>Apply for Verification</button>{' '}
+                {certFor(i.id) && <button className={btn} onClick={() => reverify(i.id)}>Re-verify →</button>}
               </div>
             ))}
           </div>
@@ -114,6 +129,7 @@ export default function Owner({ user, hdrs, openCert }) {
       {tab === 'Track' && apps.map((a) => (
         <div className={cardSm} key={a.id}>
           <span className={badge}>{a.id}</span> <b>{a.instrumentId}</b> · {a.location}
+          {a.previousCertNo ? <span className={badge}> Re-verification · prev {a.previousCertNo}</span> : null}
           <StepBar status={a.status} />
           <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} {a.confirmed ? <span className="text-emerald font-medium">· Confirmed ✓</span> : <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button>}</> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}</p>
         </div>
@@ -123,7 +139,8 @@ export default function Owner({ user, hdrs, openCert }) {
       {tab === 'Certificates' && certs.map((c) => (
         <div className={cardSm} key={c.certNo}>
           <span className={badge}>{c.certNo}</span> <b>{c.instrumentId}</b> · Valid until {c.validUntil}<br /><br />
-          <button className={btn} onClick={() => openCert(c.certNo)}>Open Certificate →</button>
+          <button className={btn} onClick={() => openCert(c.certNo)}>Open Certificate →</button>{' '}
+          <button className={btnSec} onClick={() => reverify(c.instrumentId)}>Renew / Re-verify →</button>
         </div>
       ))}
 

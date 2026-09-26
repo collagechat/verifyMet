@@ -38,7 +38,7 @@ const store = (c) => {
     instruments: async (email, role) => (await all(role === 'Owner' ? 'SELECT * FROM instruments WHERE ownerEmail = ?' : 'SELECT * FROM instruments', role === 'Owner' ? [email] : [])).map(parseInst),
     createInstrument: async (i) => { const r = await first('SELECT COUNT(*) AS n FROM instruments'); const inst = { id: `WM-${1026 + (r?.n || 0)}`, status: 'Unverified', documents: [], ...i }; await q('INSERT INTO instruments (id, ownerEmail, type, manufacturer, serial, capacity, location, validUntil, status, documents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [inst.id, inst.ownerEmail, inst.type, inst.manufacturer || '', inst.serial || '', inst.capacity || '', inst.location || '', inst.validUntil || '', inst.status, JSON.stringify(inst.documents)]); return inst },
     nextId: async () => { const r = await first('SELECT COUNT(*) AS n FROM applications'); return `VM-${1024 + (r?.n || 0)}` },
-    createApp: async (a) => { await q('INSERT INTO applications (id, instrumentId, status, location, ownerEmail, createdAt, photos) VALUES (?, ?, ?, ?, ?, ?, ?)', [a.id, a.instrumentId, a.status, a.location, a.ownerEmail, a.createdAt, JSON.stringify(a.photos || [])]); return a },
+    createApp: async (a) => { await q('INSERT INTO applications (id, instrumentId, status, location, ownerEmail, createdAt, photos, previousCertNo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [a.id, a.instrumentId, a.status, a.location, a.ownerEmail, a.createdAt, JSON.stringify(a.photos || []), a.previousCertNo || '']); return a },
     getApp: async (id) => parseApp(await first('SELECT * FROM applications WHERE id = ?', [id])),
     queue: async () => (await all('SELECT * FROM applications ORDER BY createdAt DESC')).map(parseApp),
     mine: async (email) => (await all('SELECT * FROM applications WHERE ownerEmail = ? ORDER BY createdAt DESC', [email])).map(parseApp),
@@ -97,9 +97,24 @@ app.post('/api/applications', auth, async (c) => {
   const u = c.get('user')
   const s = store(c)
   const b = await c.req.json()
-  const app = { id: await s.nextId(), instrumentId: b.instrumentId, status: 'Submitted', location: b.location || '', ownerEmail: u.email, createdAt: new Date().toISOString(), photos: b.photos || [] }
+  const app = { id: await s.nextId(), instrumentId: b.instrumentId, status: 'Submitted', location: b.location || '', ownerEmail: u.email, createdAt: new Date().toISOString(), photos: b.photos || [], previousCertNo: b.previousCertNo || '' }
   await s.createApp(app)
   await s.audit(u.email, 'application.submitted', app.id)
+  return c.json(app, 201)
+})
+// one-click re-verification: instrument + location + previous cert auto-filled
+app.post('/api/applications/reverify', auth, async (c) => {
+  const u = c.get('user')
+  const s = store(c)
+  const b = await c.req.json()
+  const insts = await s.instruments(u.email, u.role)
+  const inst = insts.find((i) => i.id === b.instrumentId)
+  if (!inst) return c.json({ error: 'instrument not found' }, 404)
+  const certs = await s.myCerts(u.email)
+  const prev = certs.filter((x) => x.instrumentId === inst.id).sort((x, y) => y.certNo.localeCompare(x.certNo))[0]
+  const app = { id: await s.nextId(), instrumentId: inst.id, status: 'Submitted', location: inst.location || '', ownerEmail: u.email, createdAt: new Date().toISOString(), photos: [], previousCertNo: prev ? prev.certNo : '' }
+  await s.createApp(app)
+  await s.audit(u.email, 'application.reverify', `${app.id}←${app.previousCertNo}`)
   return c.json(app, 201)
 })
 app.get('/api/applications/:id', auth, async (c) => {

@@ -62,7 +62,7 @@ export default function Officer({ user, hdrs, openCert }) {
         <button className={btnSec} onClick={() => { setSel(null); setRes(null); setErr('') }}>← Queue</button>
         <h2 className={h2}>{sel.id} · {sel.instrumentId}</h2>
         {err && <p className="text-rose text-sm">{err}</p>}
-        <div className={code}>Location: {sel.location} · GPS 28.61, 77.20<br />Owner: {sel.ownerEmail}<br />Status: {sel.status}{sel.scheduledAt ? ` · Inspection: ${sel.scheduledAt}` : ''}{sel.confirmed ? ' · owner confirmed ✓' : ''}</div><br />
+        <div className={code}>Location: {sel.location} · GPS 28.61, 77.20<br />Owner: {sel.ownerEmail}<br />Status: {sel.status}{sel.previousCertNo ? ` · Re-verification · prev ${sel.previousCertNo}` : ''}{sel.scheduledAt ? ` · Inspection: ${sel.scheduledAt}` : ''}{sel.confirmed ? ' · owner confirmed ✓' : ''}</div><br />
         <div className={cardSm}>
           <span className={lbl}>Schedule inspection</span><br /><br />
           <input className={inp} type="date" value={f.scheduledAt || ''} onChange={(e) => setF({ ...f, scheduledAt: e.target.value })} />{' '}
