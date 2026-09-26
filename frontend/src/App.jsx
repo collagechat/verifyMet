@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from './firebase.js'
 import { api } from './api.js'
 import { btn, btnSec, btnLight, inp, cardSm, badge, badgeY, lbl, h2, sub, code, wrap } from './ui.jsx'
@@ -10,7 +10,7 @@ import Admin from './screens/Admin.jsx'
 
 const PIPELINE = `Apply → Schedule → Inspect → Verify → Certify → Track`
 
-const Nav = ({ user, go }) => (
+const Nav = ({ user, go, onLogout }) => (
   <nav className="h-16 flex items-center border-b border-hairline sticky top-0 bg-canvas z-10">
     <div className="max-w-[1280px] mx-auto px-6 w-full flex items-center gap-7">
       <span className="font-medium text-lg">Verify<span className="text-primary">Met</span></span>
@@ -20,6 +20,7 @@ const Nav = ({ user, go }) => (
       {user?.role === 'Admin' && <a className="text-body text-sm font-medium no-underline hover:text-ink" href="#/" onClick={() => go('admin')}>Monitor</a>}
       <span className="flex-1" />
       {user ? <span className={badge}>{user.email} · {user.role}</span> : <span className={badgeY}>DIGITAL VERIFICATION</span>}
+      {user && <button className={btnSec} style={{ padding: '8px 16px' }} onClick={onLogout}>Logout</button>}
     </div>
   </nav>
 )
@@ -37,7 +38,25 @@ export default function App() {
   const [login, setLogin] = useState({ email: '', pass: '' })
   const [mode, setMode] = useState('login') // login | signup (new users land as Owner)
   const [err, setErr] = useState('')
+  const [ready, setReady] = useState(false) // true after first auth-state check
   const go = (r) => { setRoute(r); window.location.hash = '#/' }
+
+  // restore persisted Firebase session on load / refresh
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      try {
+        if (fbUser && !window.location.hash.startsWith('#/verify/')) {
+          const token = await fbUser.getIdToken()
+          const me = await api('/api/me/sync', { method: 'POST', token })
+          setUser(me)
+          setRoute((r) => (r === 'home' ? (me.role === 'Admin' ? 'admin' : me.role === 'Owner' ? 'owner' : 'officer') : r))
+        }
+      } catch {} finally {
+        setReady(true)
+      }
+    })
+    return () => unsub()
+  }, [])
 
   useEffect(() => {
     const h = () => {
@@ -67,10 +86,12 @@ export default function App() {
   }
 
   const openCert = (no) => { setCertNo(no); setRoute('cert') }
+  const doLogout = async () => { await signOut(auth); setUser(null); go('home') }
 
   const body = () => {
     if (route === 'qr') return <QrPage certNo={certNo} />
     if (route === 'cert' && certNo) return <CertPage certNo={certNo} />
+    if (!ready) return <div className={wrap}><p className={sub}>Restoring session…</p></div>
 
     if (!user || route === 'home') {
       return (
@@ -114,7 +135,7 @@ export default function App() {
     return null
   }
 
-  return <div><Nav user={user} go={go} />{body()}<Foot /></div>
+  return <div><Nav user={user} go={go} onLogout={doLogout} />{body()}<Foot /></div>
 }
 
 function QrPage({ certNo }) {
