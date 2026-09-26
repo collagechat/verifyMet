@@ -10,6 +10,7 @@ export default function Officer({ user, hdrs, openCert }) {
   const [sel, setSel] = useState(null)
   const [f, setF] = useState({})
   const [res, setRes] = useState(null)
+  const [err, setErr] = useState('')
 
   const load = async () => {
     const h = await hdrs()
@@ -24,23 +25,33 @@ export default function Officer({ user, hdrs, openCert }) {
   }, [])
 
   const schedule = async () => {
-    const h = await hdrs()
-    const a = await api(`/api/applications/${sel.id}/schedule`, { method: 'POST', body: { scheduledAt: f.scheduledAt }, ...h })
-    setSel(a)
-    load()
+    setErr('')
+    try {
+      if (!f.scheduledAt) throw new Error('pick an inspection date first')
+      const h = await hdrs()
+      const a = await api(`/api/applications/${sel.id}/schedule`, { method: 'POST', body: { scheduledAt: f.scheduledAt }, ...h })
+      setSel(a)
+      load()
+    } catch (e) { setErr(e.message) }
   }
 
   const decide = async (result) => {
-    const h = await hdrs()
-    const urls = []
-    for (const file of f.files || []) urls.push((await uploadPhoto(file)) || 'cloudinary:pending')
-    const out = await api(`/api/applications/${sel.id}/verify`, {
-      method: 'POST',
-      body: { observed: parseFloat(f.observed), tolerance: parseFloat(f.tolerance), result, remarks: f.remarks, photos: urls }, ...h,
-    })
-    setRes(out)
-    load()
-    if (out.certificate) openCert(out.certificate.certNo)
+    setErr('')
+    try {
+      const observed = parseFloat(f.observed)
+      const tolerance = parseFloat(f.tolerance)
+      if (Number.isNaN(observed) || Number.isNaN(tolerance)) throw new Error('enter observed measurement and tolerance as numbers')
+      const h = await hdrs()
+      const urls = []
+      for (const file of f.files || []) urls.push((await uploadPhoto(file)) || 'cloudinary:pending')
+      const out = await api(`/api/applications/${sel.id}/verify`, {
+        method: 'POST',
+        body: { observed, tolerance, result, remarks: f.remarks, photos: urls }, ...h,
+      })
+      setRes(out)
+      load()
+      if (out.certificate) openCert(out.certificate.certNo)
+    } catch (e) { setErr(e.message) }
   }
 
   const shown = tab === 'Scheduled' ? apps.filter((a) => a.status === 'Scheduled') : tab === 'Done' ? apps.filter((a) => ['Certificate Issued', 'Failed'].includes(a.status)) : apps
@@ -48,8 +59,9 @@ export default function Officer({ user, hdrs, openCert }) {
   if (sel) {
     return (
       <div className={`${wrap} py-12`}>
-        <button className={btnSec} onClick={() => { setSel(null); setRes(null) }}>← Queue</button>
+        <button className={btnSec} onClick={() => { setSel(null); setRes(null); setErr('') }}>← Queue</button>
         <h2 className={h2}>{sel.id} · {sel.instrumentId}</h2>
+        {err && <p className="text-rose text-sm">{err}</p>}
         <div className={code}>Location: {sel.location} · GPS 28.61, 77.20<br />Owner: {sel.ownerEmail}<br />Status: {sel.status}{sel.scheduledAt ? ` · Inspection: ${sel.scheduledAt}` : ''}{sel.confirmed ? ' · owner confirmed ✓' : ''}</div><br />
         <div className={cardSm}>
           <span className={lbl}>Schedule inspection</span><br /><br />
