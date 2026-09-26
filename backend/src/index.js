@@ -40,6 +40,7 @@ const store = (c) => {
     nextId: async () => { const r = await first('SELECT COUNT(*) AS n FROM applications'); return `VM-${1024 + (r?.n || 0)}` },
     createApp: async (a) => { await q('INSERT INTO applications (id, instrumentId, status, location, ownerEmail, createdAt, photos, previousCertNo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [a.id, a.instrumentId, a.status, a.location, a.ownerEmail, a.createdAt, JSON.stringify(a.photos || []), a.previousCertNo || '']); return a },
     getApp: async (id) => parseApp(await first('SELECT * FROM applications WHERE id = ?', [id])),
+    deleteApp: async (id) => { await q('DELETE FROM applications WHERE id = ?', [id]) },
     queue: async () => (await all('SELECT * FROM applications ORDER BY createdAt DESC')).map(parseApp),
     mine: async (email) => (await all('SELECT * FROM applications WHERE ownerEmail = ? ORDER BY createdAt DESC', [email])).map(parseApp),
     saveApp: async (a) => { await q('UPDATE applications SET status = ?, officerEmail = ?, assignedOfficer = ?, scheduledAt = ?, confirmed = ?, observed = ?, tolerance = ?, result = ?, remarks = ?, photos = ?, certNo = ? WHERE id = ?', [a.status, a.officerEmail || '', a.assignedOfficer || '', a.scheduledAt || '', a.confirmed || '', a.observed ?? null, a.tolerance ?? null, a.result || '', a.remarks || '', JSON.stringify(a.photos || []), a.certNo || '', a.id]); return a },
@@ -133,17 +134,16 @@ app.post('/api/applications/:id/confirm-schedule', auth, async (c) => {
   await s.audit(c.get('user').email, 'schedule.confirmed', a.id)
   return c.json(a)
 })
-// owner cancels a pending application (Submitted / Scheduled only)
+// owner cancels a pending application: the row is removed entirely
 app.post('/api/applications/:id/cancel', auth, async (c) => {
   const s = store(c)
   const a = await s.getApp(c.req.param('id'))
   if (!a) return c.json({ error: 'not found' }, 404)
   if (a.ownerEmail !== c.get('user').email) return c.json({ error: 'not your application' }, 403)
   if (!['Submitted', 'Scheduled'].includes(a.status)) return c.json({ error: `cannot cancel when ${a.status}` }, 400)
-  a.status = 'Cancelled'
-  await s.saveApp(a)
+  await s.deleteApp(a.id)
   await s.audit(c.get('user').email, 'application.cancelled', a.id)
-  return c.json(a)
+  return c.json({ deleted: a.id })
 })
 
 // --- officer ---
