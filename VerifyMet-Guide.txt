@@ -4,7 +4,7 @@ VerifyMet - HOW IT WORKS (full guide)
 LIVE LINKS
 ----------
 Website (frontend) : https://frontend-two-tawny-34.vercel.app
-API (backend)      : https://verifymet-api.internaltalk.workers.dev
+
 QR check (example) : https://frontend-two-tawny-34.vercel.app/#/verify/VM-CERT-1024
 
 WHAT IS VERIFYMET
