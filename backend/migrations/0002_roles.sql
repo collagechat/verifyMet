@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL,
+  actor TEXT DEFAULT '', action TEXT NOT NULL, ref TEXT DEFAULT ''
+);
+ALTER TABLE applications ADD COLUMN scheduledAt TEXT DEFAULT '';
+ALTER TABLE applications ADD COLUMN assignedOfficer TEXT DEFAULT '';
+ALTER TABLE instruments ADD COLUMN documents TEXT DEFAULT '[]';
