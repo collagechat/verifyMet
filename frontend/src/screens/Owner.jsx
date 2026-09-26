@@ -19,7 +19,13 @@ export default function Owner({ user, hdrs, openCert }) {
     setApps(await api('/api/my/applications', h).catch(() => []))
     setCerts(await api('/api/my/certificates', h).catch(() => []))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const t = setInterval(load, 8000) // live updates without refresh
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  }, [])
 
   const docs = async () => {
     const files = f.files || []

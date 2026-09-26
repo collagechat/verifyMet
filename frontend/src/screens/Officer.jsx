@@ -15,7 +15,13 @@ export default function Officer({ user, hdrs, openCert }) {
     const h = await hdrs()
     setApps(await api('/api/officer/queue', h).catch(() => []))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const t = setInterval(load, 8000) // live updates without refresh
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  }, [])
 
   const schedule = async () => {
     const h = await hdrs()

@@ -23,7 +23,13 @@ export default function Admin({ user, hdrs }) {
     const us = await api('/api/admin/users', h).catch(() => [])
     setOfficers(us.filter((u) => u.role === 'LMO' || u.role === 'GATC'))
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const t = setInterval(load, 8000) // live updates without refresh
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  }, [])
 
   const upsertUser = async (e) => {
     e.preventDefault()
