@@ -103,7 +103,7 @@ export default function Owner({ user, hdrs, openCert }) {
                 <span className={badge}>{i.id}</span>
                 <h3 className="text-lg font-medium">{i.type}</h3>
                 <p className={sub}>Serial: {i.serial || '—'} · {i.capacity || ''}<br />{i.location || ''} · Valid until: {i.validUntil || '—'}<br />Status: {i.status}</p>
-                {apps.filter((a) => a.instrumentId === i.id && ['Submitted', 'Scheduled'].includes(a.status)).map((a) => (
+                {apps.filter((a) => a.instrumentId === i.id && ['Submitted', 'Scheduled', 'Inspection'].includes(a.status)).map((a) => (
                   <p className={sub} key={a.id}><span className={badge}>{a.id}</span> {a.status}{a.scheduledAt ? ` · Inspection: ${a.scheduledAt}` : ''} <button className={btnSec} onClick={() => cancelApp(a.id)}>Cancel</button></p>
                 ))}
                 <button className={btnSec} onClick={() => { setApplyFor(i.id); setTab('Apply') }}>Apply for Verification</button>{' '}
@@ -144,7 +144,7 @@ export default function Owner({ user, hdrs, openCert }) {
           <span className={badge}>{a.id}</span> <b>{a.instrumentId}</b> · {a.location}
           {a.previousCertNo ? <span className={badge}> Re-verification · prev {a.previousCertNo}</span> : null}
           <StepBar status={a.status} />
-          <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} {a.confirmed ? <span className="text-emerald font-medium">· Confirmed ✓</span> : <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button>}</> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}{['Submitted', 'Scheduled'].includes(a.status) ? <> <button className={btnSec} onClick={() => cancelApp(a.id)}>Cancel</button></> : null}</p>
+          <p className={sub}>Status: <b>{a.status}</b>{a.scheduledAt ? <> · Inspection: {a.scheduledAt} {a.confirmed ? <span className="text-emerald font-medium">· Confirmed ✓</span> : <button className={btnSec} onClick={() => confirm(a.id)}>Confirm</button>}</> : null}{a.officerEmail ? ` · Officer: ${a.officerEmail}` : ''}{['Submitted', 'Scheduled', 'Inspection'].includes(a.status) ? <> <button className={btnSec} onClick={() => cancelApp(a.id)}>Cancel</button></> : null}</p>
         </div>
       ))}
 

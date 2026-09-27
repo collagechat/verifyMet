@@ -129,7 +129,9 @@ app.post('/api/applications/:id/confirm-schedule', auth, async (c) => {
   const a = await s.getApp(c.req.param('id'))
   if (!a) return c.json({ error: 'not found' }, 404)
   if (a.ownerEmail !== c.get('user').email) return c.json({ error: 'not your application' }, 403)
+  if (a.status !== 'Scheduled') return c.json({ error: `nothing to confirm while ${a.status}` }, 400)
   a.confirmed = 'yes'
+  a.status = 'Inspection' // owner confirmed → visible to officer, ready for field visit
   await s.saveApp(a)
   await s.audit(c.get('user').email, 'schedule.confirmed', a.id)
   return c.json(a)
@@ -140,7 +142,7 @@ app.post('/api/applications/:id/cancel', auth, async (c) => {
   const a = await s.getApp(c.req.param('id'))
   if (!a) return c.json({ error: 'not found' }, 404)
   if (a.ownerEmail !== c.get('user').email) return c.json({ error: 'not your application' }, 403)
-  if (!['Submitted', 'Scheduled'].includes(a.status)) return c.json({ error: `cannot cancel when ${a.status}` }, 400)
+  if (!['Submitted', 'Scheduled', 'Inspection'].includes(a.status)) return c.json({ error: `cannot cancel when ${a.status}` }, 400)
   await s.deleteApp(a.id)
   await s.audit(c.get('user').email, 'application.cancelled', a.id)
   return c.json({ deleted: a.id })
