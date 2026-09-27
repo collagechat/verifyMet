@@ -3,12 +3,10 @@ import { QRCodeSVG } from 'qrcode.react'
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth } from './firebase.js'
 import { api } from './api.js'
-import { btn, btnSec, btnLight, inp, cardSm, badge, badgeY, lbl, h2, sub, code, wrap } from './ui.jsx'
+import { btn, inp, cardSm, badge, badgeY, lbl, h2, sub, wrap } from './ui.jsx'
 import Owner from './screens/Owner.jsx'
 import Officer from './screens/Officer.jsx'
 import Admin from './screens/Admin.jsx'
-
-const PIPELINE = `Apply → Schedule → Inspect → Verify → Certify → Track`
 
 const Nav = ({ user, go, onLogout }) => (
   <nav className="h-16 flex items-center border-b border-hairline sticky top-0 bg-canvas z-10">
@@ -36,7 +34,8 @@ export default function App() {
   const [route, setRoute] = useState('home')
   const [certNo, setCertNo] = useState(null)
   const [login, setLogin] = useState({ email: '', pass: '' })
-  const [mode, setMode] = useState('login') // login | signup (new users land as Owner)
+  const [mode, setMode] = useState('login') // login | signup (Owner tab only)
+  const [loginTab, setLoginTab] = useState('Owner') // Owner | Officer | Admin
   const [err, setErr] = useState('')
   const [ready, setReady] = useState(false) // true after first auth-state check
   const go = (r) => { setRoute(r); window.location.hash = '#/' }
@@ -73,15 +72,21 @@ export default function App() {
   const doLogin = async (email, pass) => {
     setErr('')
     try {
+      if (mode === 'signup' && loginTab !== 'Owner') throw new Error('registration is owner-only — ask your admin for officer access')
       const c = mode === 'signup'
         ? await createUserWithEmailAndPassword(auth, email, pass)
         : await signInWithEmailAndPassword(auth, email, pass)
       const token = await c.user.getIdToken()
       const me = await api('/api/me/sync', { method: 'POST', token })
+      const ok = loginTab === 'Owner' ? me.role === 'Owner' : loginTab === 'Officer' ? ['LMO', 'GATC'].includes(me.role) : me.role === 'Admin'
+      if (!ok) {
+        await signOut(auth)
+        throw new Error(`this account is ${me.role} — use the ${me.role === 'Owner' ? 'Owner' : ['LMO', 'GATC'].includes(me.role) ? 'Officer' : 'Admin'} login`)
+      }
       setUser(me)
       setRoute(me.role === 'Admin' ? 'admin' : me.role === 'Owner' ? 'owner' : 'officer')
     } catch (e) {
-      setErr(e.code?.replace('auth/', '').replaceAll('-', ' ') || 'login failed')
+      setErr(e.message?.replace('auth/', '').replaceAll('-', ' ') || 'login failed')
     }
   }
 
@@ -94,37 +99,36 @@ export default function App() {
     if (!ready) return <div className={wrap}><p className={sub}>Restoring session…</p></div>
 
     if (!user || route === 'home') {
+      const tabs = ['Owner', 'Officer', 'Admin']
+      const titles = { Owner: 'Owner Login', Officer: 'Officer Login · LMO / GATC', Admin: 'Admin Login' }
+      const notes = {
+        Owner: 'Register your instruments, apply for verification, track status and receive QR certificates.',
+        Officer: 'For Legal Metrology Officers and test centres. Review assigned work, inspect and certify.',
+        Admin: 'Monitor users, applications, expiry and the full audit trail.',
+      }
       return (
-        <div className={wrap}>
-          <div className="grid grid-cols-1 md:grid-cols-[7fr_5fr] gap-8 items-center py-12 md:py-24">
-            <div>
-              <span className={badgeY}>LEGAL METROLOGY · DIGITAL VERIFICATION</span>
-              <h1 className="font-normal leading-[1.2] m-0 text-4xl md:text-[40px]">Weighing machines, verified online.</h1>
-              <p className={sub}>Owner applies → Officer reviews & inspects → Result recorded → QR certificate → Admin monitors the entire system.</p>
-              <p>
-                <form onSubmit={(e) => { e.preventDefault(); doLogin(login.email, login.pass) }}>
-                  <input className={inp} value={login.email} onChange={(e) => setLogin({ ...login, email: e.target.value })} placeholder="email" /><br /><br />
-                  <input className={inp} type="password" value={login.pass} onChange={(e) => setLogin({ ...login, pass: e.target.value })} placeholder="password" /><br /><br />
-                  {err && <p className="text-rose text-sm">{err}</p>}
-                  <button className={btn}>{mode === 'signup' ? 'Register →' : 'Login →'}</button>{' '}
-                  <button type="button" className={btnSec} onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}>{mode === 'signup' ? 'Have an account? Login' : 'New here? Register'}</button>
-                </form>
-              </p>
-            </div>
-            <div>
-              <div className={code}><span className="text-white/60">-- verification pipeline</span><br /><span className="text-[#f4d35e]">{PIPELINE}</span><br /><br /><span className="text-[#8ab4ff]">SELECT</span> status <span className="text-[#8ab4ff]">FROM</span> certificates<br /><span className="text-[#8ab4ff]">WHERE</span> instrument = <span className="text-[#f4d35e]">'WM-1024'</span>;<br /><span className="text-white/60">-- → VALID · until 15 Nov 2026</span></div>
-              <div className="flex gap-8 mt-6">
-                <div><div className="text-[44px] font-normal text-ink leading-none">3</div><div className={sub}>roles, one system</div></div>
-                <div><div className="text-[44px] font-normal text-ink leading-none">1</div><div className={sub}>QR scan to VALID</div></div>
-              </div>
-            </div>
+        <div className="max-w-md mx-auto px-6 py-16">
+          <div className="text-center">
+            <span className={badgeY}>VERIFYMET</span>
+            <h1 className="font-normal text-[32px] mt-4">{titles[loginTab]}</h1>
+            <p className={sub}>{notes[loginTab]}</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[['Owner', 'Register → add instruments → apply → upload docs → track → receive QR certificate.', 'bg-cream'], ['Officer (LMO/GATC)', 'Assigned queue → inspect → record measurements → approve/reject → certificate.', 'bg-peach'], ['Admin', 'Users → instruments → assign → expiry & renewals → audit logs.', 'bg-mint']].map(([t, d, bg]) => (
-              <div className={`${bg} rounded-[10px] p-6 my-4`} key={t}><h3 className="text-lg font-medium">{t}</h3><p className="text-body text-sm leading-relaxed">{d}</p></div>
+          <div className="flex gap-2 justify-center my-4">
+            {tabs.map((t) => (
+              <button key={t} onClick={() => { setLoginTab(t); setMode('login'); setErr('') }} className={t === loginTab ? 'bg-elevated text-ink text-sm font-medium rounded-lg px-3.5 py-2 border border-hairline cursor-pointer' : 'bg-transparent text-muted text-sm font-medium rounded-lg px-3.5 py-2 cursor-pointer'}>{t}</button>
             ))}
           </div>
-          <div className="bg-coral text-white rounded-xl px-12 py-12 my-12"><h2 className={h2}>One weighing machine. Zero paperwork.</h2><p>Register above as Owner and run your first instrument through the full journey.</p><br /><button className={btnLight} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Get started →</button></div>
+          <div className={cardSm}>
+            <form onSubmit={(e) => { e.preventDefault(); doLogin(login.email, login.pass) }}>
+              <input className={inp} value={login.email} onChange={(e) => setLogin({ ...login, email: e.target.value })} placeholder="email" /><br /><br />
+              <input className={inp} type="password" value={login.pass} onChange={(e) => setLogin({ ...login, pass: e.target.value })} placeholder="password" /><br /><br />
+              {err && <p className="text-rose text-sm">{err}</p>}
+              <button className={btn} style={{ width: '100%' }}>{mode === 'signup' ? 'Register →' : 'Login →'}</button>
+            </form>
+            {loginTab === 'Owner' && (
+              <p className="text-center"><button type="button" className="text-blue text-sm no-underline bg-transparent border-0 cursor-pointer" onClick={() => setMode(mode === 'signup' ? 'login' : 'signup')}>{mode === 'signup' ? 'Have an account? Login' : 'New here? Register'}</button></p>
+            )}
+          </div>
         </div>
       )
     }
