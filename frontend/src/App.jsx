@@ -86,7 +86,7 @@ export default function App() {
       setUser(me)
       setRoute(me.role === 'Admin' ? 'admin' : me.role === 'Owner' ? 'owner' : 'officer')
     } catch (e) {
-      setErr(e.message?.replace('auth/', '').replaceAll('-', ' ') || 'login failed')
+      setErr((e.message || 'login failed').replace('auth/', '').replace(/-/g, ' '))
     }
   }
 
@@ -133,10 +133,17 @@ export default function App() {
       )
     }
 
-    if (route === 'owner' || user.role === 'Owner') return <Owner user={user} hdrs={hdrs} openCert={openCert} />
-    if (route === 'officer' || ['LMO', 'GATC'].includes(user.role)) return <Officer user={user} hdrs={hdrs} openCert={openCert} />
-    if (route === 'admin' || user.role === 'Admin') return <Admin user={user} hdrs={hdrs} />
-    return null
+    const role = String(user.role || '').trim()
+    if (route === 'owner' || role === 'Owner') return <Owner user={user} hdrs={hdrs} openCert={openCert} />
+    if (route === 'officer' || ['LMO', 'GATC'].includes(role)) return <Officer user={user} hdrs={hdrs} openCert={openCert} />
+    if (route === 'admin' || role === 'Admin') return <Admin user={user} hdrs={hdrs} />
+    return (
+      <div className={wrap}><div className={cardSm}>
+        <h2 className={h2}>Account issue</h2>
+        <p className={sub}>Your account has an unknown role ({role || 'none'}). Ask your admin to set Owner, LMO, GATC or Admin, then log in again.</p>
+        <button className={btnSec} onClick={doLogout}>Logout</button>
+      </div></div>
+    )
   }
 
   return <div><Nav user={user} go={go} onLogout={doLogout} />{body()}<Foot /></div>
